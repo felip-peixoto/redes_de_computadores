@@ -14,7 +14,7 @@
 int main(int argc, char **argv)
 {
     char buffer[100];
-    const char *message = "Hello Server";
+    const char *message = "GET /teste.txt";
     int sockfd, n;
     struct sockaddr_in servaddr;
 
@@ -34,6 +34,29 @@ int main(int argc, char **argv)
     sendto(sockfd, message, MAXLINE, 0, (struct sockaddr *)NULL, sizeof(servaddr));
     int end = recvfrom(sockfd, buffer, sizeof(buffer), 0, (struct sockaddr *)NULL, NULL);
     buffer[end] = '\0';
+
+    std::string requisicao(buffer);
+
+    size_t pos_espaco = requisicao.find(' ');
+
+    if (pos_espaco != std::string::npos) { // Verifica se achou o espaço
+    std::string comando = requisicao.substr(0, pos_espaco);
+    
+    if (comando == "GET") {
+        std::string nome_arquivo = requisicao.substr(pos_espaco + 2);
+
+        std::ifstream arquivo(nome_arquivo, std::ios::in | std::ios::binary);
+
+        if (!arquivo.is_open()) {
+            std::string erro = "Erro: Arquivo nao encontrado";
+        } 
+        else {
+
+        }
+    }
+}
+
+
     puts(buffer);
     close(sockfd);
 }
