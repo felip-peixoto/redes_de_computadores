@@ -7,19 +7,27 @@
 #include <netinet/in.h>
 #include <unistd.h>
 #include "protocolo.h"
-#include <cstdint> 
-#include <string_view>
+#include <cstdint>
+#include <iostream>
+#include <fstream>
+#include <string>
 
 int main(int argc, char **argv)
 {
     char buffer[TAM_BUFFER];
     uint8_t pacote[TAM_BUFFER];
-    const char *nome = "teste.txt";
+
+    std::string entrada;
+    std::getline(std::cin, entrada);
 
     pacote[0] = MSG_REQ;
-    memcpy(&pacote[1], nome, strlen(nome));
-    int tam = 1 + strlen(nome);
 
+    int tam = 1 + entrada.size();
+
+    if((tam > TAM_BUFFER) || entrada.empty()){
+        return 1;
+    }
+    memcpy(&pacote[1], entrada.c_str(), entrada.size());
 
     int sockfd;
     struct sockaddr_in servaddr;
@@ -45,8 +53,29 @@ int main(int argc, char **argv)
         close(sockfd);
         return 1;
     }
-    buffer[n] = '\0';
-    puts(buffer);
+
+    if (n < 1){
+        std::cout << "Resposta Vazia" << "\n";
+    }
+    else if(buffer[0] == MSG_ERRO && n >= 2){
+        std::string erro(buffer + 2, n - 2);
+        std::cout << erro << "\n";
+    }
+    else if(buffer[0] == MSG_DADOS && n >= TAM_CAB_DADOS){
+        uint32_t seq_rede;
+        memcpy(&seq_rede, &buffer[1], 4);
+        uint32_t seq = ntohl(seq_rede);
+
+        int tam_dados = n - TAM_CAB_DADOS;
+        std::cout << "Bloco " << seq << " recebido com " << tam_dados << " bytes\n";
+
+        std::ofstream saida("recebido.bin", std::ios::binary);
+        saida.write(&buffer[TAM_CAB_DADOS], tam_dados);
+        saida.close();
+    }
+    else{
+        std::cout << "Resposta inesperada" << "\n";
+    }
 
     close(sockfd);
     return 0;

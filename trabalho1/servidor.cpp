@@ -7,13 +7,15 @@
 #include <netinet/in.h>
 #include <unistd.h>
 #include "protocolo.h"
+#include <cstdint>
 #include <iostream>
 #include <fstream>
+#include <string>
 
 int main(int argc, char **argv)
 {
     char buffer[TAM_BUFFER];
-    char mensagem[TAM_BUFFER];
+    char mensagem[TAM_MAX_PACOTE];
     int listenfd;
     socklen_t len;
     struct sockaddr_in servaddr, cliaddr;
@@ -48,25 +50,31 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    if(buffer[0] == MSG_REQ){
+    if(n > 1 && buffer[0] == MSG_REQ){
         std::string nome_arquivo(buffer + 1, n - 1);
 
         std::string caminho = std::string(PASTA_ARQUIVOS) + nome_arquivo;
 
-        std::ifstream arquivo(caminho);
+        std::ifstream arquivo(caminho, std::ios::binary);
 
-        const char *texto;
-        int tam; 
+        int tam;
 
         if(arquivo.is_open()){
-            texto = "Arquivo existe"; 
-            std::cout << texto << "\n";
-            mensagem[0] = MSG_INFO;
-            memcpy(&mensagem[1], texto, strlen(texto));
-            tam = 1 + strlen(texto);
+            uint32_t seq = 1;
+            uint32_t seq_rede = htonl(seq);
+
+            bzero(mensagem, TAM_CAB_DADOS);
+            mensagem[0] = MSG_DADOS;
+            memcpy(&mensagem[1], &seq_rede, 4);
+
+            arquivo.read(&mensagem[TAM_CAB_DADOS], TAM_PAYLOAD);
+            int lidos = arquivo.gcount();
+
+            tam = TAM_CAB_DADOS + lidos;
+            std::cout << "Enviando bloco " << seq << " com " << lidos << " bytes\n";
         }
         else{
-            texto = "Arquivo não encontrado";
+            const char *texto = "Arquivo não encontrado";
             std::cout << texto << "\n";
             mensagem[0] = MSG_ERRO;
             mensagem[1] = ERRO_NAO_ENCONTRADO;
@@ -80,8 +88,6 @@ int main(int argc, char **argv)
     else{
         return 0;
     }
-
-    
 
     close(listenfd);
     return 0;
